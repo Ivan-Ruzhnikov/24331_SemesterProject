@@ -5,7 +5,8 @@ import serial.tools.list_ports
 class MotorDriver:
     def __init__(self):
         self.ser = None
-
+        self.history = []
+        
     @staticmethod
     def get_available_ports():
         """Возвращает список доступных COM-портов"""
@@ -28,10 +29,11 @@ class MotorDriver:
             self.ser.close()
 
     def move_to(self, target_position_mm):
-        """
-        Отправляет команду движения к относительной позиции
-        Arduino ждет число
-        """
+        """Отправляет команду движения к относительной позиции"""
         if self.ser and self.ser.is_open:
             command = f"{target_position_mm}"
             self.ser.write(command.encode('utf-8'))
+            self.history.append({
+                "time": time.ctime(time.time()),
+                "distance": distance
+            })
