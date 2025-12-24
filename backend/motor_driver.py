@@ -2,7 +2,6 @@ import serial
 import time
 import serial.tools.list_ports
 
-
 class MotorDriver:
     def __init__(self):
         self.ser = None
@@ -28,23 +27,11 @@ class MotorDriver:
         if self.ser and self.ser.is_open:
             self.ser.close()
 
-    def set_zero(self):
-        """Отправляет команду установки нуля"""
-        if self.ser and self.ser.is_open:
-            self.ser.write(b'z\n')
-
     def move_to(self, target_position_mm):
         """
-        Отправляет команду движения к абсолютной позиции
-        Arduino ждет: '1' -> (пауза/prompt) -> число
+        Отправляет команду движения к относительной позиции
+        Arduino ждет число
         """
         if self.ser and self.ser.is_open:
-            self.ser.write(b'1\n')
-            time.sleep(0.1)
-            command = f"{target_position_mm}\n"
+            command = f"{target_position_mm}"
             self.ser.write(command.encode('utf-8'))
-
-    def emergency_stop(self):
-        """Вынужденная остановка"""
-        if self.ser and self.ser.is_open:
-            self.ser.close()
