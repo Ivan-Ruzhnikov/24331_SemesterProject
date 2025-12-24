@@ -18,13 +18,6 @@ class MotorDriver:
         try:
             self.ser = serial.Serial(port_name, 9600, timeout=1)
             time.sleep(2)
-            # Инициализация: переключаем в Линейный режим (из меню Arduino)
-            # Посылаем 'm' (меню), ждем, посылаем '2' (Linear Mode)
-            self.ser.write(b'm')
-            time.sleep(0.5)
-            self.ser.write(b'2')
-            time.sleep(0.5)
-            self.ser.reset_input_buffer()
             return True
         except serial.SerialException as e:
             print(f"Ошибка подключения: {e}")
@@ -38,7 +31,7 @@ class MotorDriver:
     def set_zero(self):
         """Отправляет команду установки нуля"""
         if self.ser and self.ser.is_open:
-            self.ser.write(b'z')
+            self.ser.write(b'z\n')
 
     def move_to(self, target_position_mm):
         """
@@ -46,7 +39,7 @@ class MotorDriver:
         Arduino ждет: '1' -> (пауза/prompt) -> число
         """
         if self.ser and self.ser.is_open:
-            self.ser.write(b'1')
+            self.ser.write(b'1\n')
             time.sleep(0.1)
             command = f"{target_position_mm}\n"
             self.ser.write(command.encode('utf-8'))
