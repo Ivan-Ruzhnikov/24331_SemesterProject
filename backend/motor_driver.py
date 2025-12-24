@@ -5,7 +5,6 @@ import serial.tools.list_ports
 class MotorDriver:
     def __init__(self):
         self.ser = None
-        self.history = []
         
     @staticmethod
     def get_available_ports():
@@ -33,7 +32,3 @@ class MotorDriver:
         if self.ser and self.ser.is_open:
             command = f"{target_position_mm}"
             self.ser.write(command.encode('utf-8'))
-            self.history.append({
-                "time": time.ctime(time.time()),
-                "distance": target_position_mm
-            })
