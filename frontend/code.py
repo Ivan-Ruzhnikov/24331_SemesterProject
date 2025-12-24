@@ -1,15 +1,15 @@
 import sys
 import os
+import datetime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QDoubleSpinBox, QRadioButton,
     QButtonGroup, QLabel, QComboBox, QMenu,
-    QMessageBox
+    QMessageBox, QTextEdit, QGroupBox
 )
 from PyQt6.QtGui import QDesktopServices, QAction
-from PyQt6.QtCore import QSize, QUrl
-
+from PyQt6.QtCore import QSize, QUrl, Qt
 from backend.motor_driver import MotorDriver
 
 
@@ -17,20 +17,24 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Control Panel")
-        self.setFixedSize(QSize(700, 500))
+        self.setFixedSize(QSize(950, 450))
         self.driver = MotorDriver()
-        self.current_position = 0.0
-        self.zero_position = 0.0
         self.readme = os.path.join(os.path.dirname(os.path.abspath(__file__)), "README.txt")
         self.init_ui()
+        self.log_message("Программа запущена. Режим: Относительное перемещение.")
 
     def init_ui(self):
-        """Верхняя панель"""
-        top_layout = QHBoxLayout() # Подключение
+        main_widget = QWidget()
+        main_layout = QHBoxLayout()
 
+        left_panel = QWidget()
+        left_layout = QVBoxLayout()
+
+        # Верхняя панель (Подключение)
+        top_layout = QHBoxLayout()
         sensor_label = QLabel("Порт:")
         self.sensor_combo = QComboBox()
-        self.refresh_ports()  # Заполнить список портов
+        self.refresh_ports()
 
         self.refresh_btn = QPushButton("Обновить")
         self.refresh_btn.clicked.connect(self.refresh_ports)
@@ -39,20 +43,16 @@ class MainWindow(QMainWindow):
         self.connect_btn.setCheckable(True)
         self.connect_btn.clicked.connect(self.toggle_connection)
 
-        self.position_label = QLabel("Позиция: 0.000 мм")
-        self.position_label.setStyleSheet("font-weight: bold; font-size: 14px;")
-
         top_layout.addWidget(sensor_label)
         top_layout.addWidget(self.sensor_combo)
         top_layout.addWidget(self.refresh_btn)
         top_layout.addWidget(self.connect_btn)
         top_layout.addStretch()
-        top_layout.addWidget(self.position_label)
 
-        """Центральная часть"""
+        # Центральная панель (Движение)
         center_layout = QGridLayout()
 
-        distance_label = QLabel("Расстояние, мм:")
+        distance_label = QLabel("Смещение, мм:")
         self.distance_spin = QDoubleSpinBox()
         self.distance_spin.setDecimals(3)
         self.distance_spin.setRange(0, 1000)
@@ -90,49 +90,73 @@ class MainWindow(QMainWindow):
         center_layout.addWidget(quick_label, 2, 0)
         center_layout.addLayout(quick_layout, 2, 1)
 
-        """Нижняя панель"""
+        # Нижняя панель (Действия)
         bottom_layout = QHBoxLayout()
 
-        self.set_zero_btn = QPushButton("Установить Ноль")
-        self.set_zero_btn.clicked.connect(self.set_zero)
-
         self.move_btn = QPushButton("ДВИГАТЬ")
-        self.move_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
-        self.move_btn.setMinimumHeight(40)
+        self.move_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; font-size: 14px;")
+        self.move_btn.setMinimumHeight(45)
         self.move_btn.clicked.connect(self.move_sensor)
 
-        self.stop_btn = QPushButton("СТОП")
-        self.stop_btn.setStyleSheet("background-color: #f44336; color: white; font-weight: bold;")
-        self.stop_btn.setMinimumHeight(40)
-        self.stop_btn.clicked.connect(self.emergency_stop)
-
-        # Кнопка ТЕСТ
+        # Кнопка ТЕСТ - ДЛЯ СДАЧИ ПРОЕКТА. Нужно потом убрать!!!
         self.test_btn = QPushButton("ТЕСТ")
+        self.test_btn.setCheckable(True)
         self.test_btn.setStyleSheet("background-color: #17a2b8; color: white; font-weight: bold;")
-        self.test_btn.setMinimumHeight(40)
+        self.test_btn.setMinimumHeight(45)
         self.test_btn.clicked.connect(self.toggle_test_mode)
 
-        bottom_layout.addWidget(self.set_zero_btn)
         bottom_layout.addWidget(self.move_btn)
-        bottom_layout.addWidget(self.stop_btn)
         bottom_layout.addWidget(self.test_btn)
 
-        # Сборка
-        main_layout = QVBoxLayout()
-        main_layout.addLayout(top_layout)
-        main_layout.addSpacing(15)
-        main_layout.addLayout(center_layout)
-        main_layout.addStretch()
-        main_layout.addLayout(bottom_layout)
+        left_layout.addLayout(top_layout)
+        left_layout.addSpacing(20)
+        left_layout.addLayout(center_layout)
+        left_layout.addStretch()
+        left_layout.addLayout(bottom_layout)
+        left_panel.setLayout(left_layout)
 
-        container = QWidget()
-        container.setLayout(main_layout)
-        self.setCentralWidget(container)
+        # Журнал операций
+        right_group = QGroupBox("Журнал операций")
+        right_group.setStyleSheet("QGroupBox { font-weight: bold; }")
+        right_layout = QVBoxLayout()
+
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setStyleSheet("font-family: Consolas; font-size: 11px;")
+
+        clear_btn = QPushButton("Очистить")
+        clear_btn.clicked.connect(self.clear_log)
+
+        right_layout.addWidget(self.log_text)
+        right_layout.addWidget(clear_btn)
+        right_group.setLayout(right_layout)
+
+        # Добавляем панели в главное окно
+        # Левая часть занимает 60% ширины, правая 40%
+        main_layout.addWidget(left_panel, 6)
+        main_layout.addWidget(right_group, 4)
+
+        main_widget.setLayout(main_layout)
+        self.setCentralWidget(main_widget)
 
         # Блокируем кнопки до подключения
         self.enable_controls(False)
 
-    """Логика"""
+    # ЛОГИКА
+
+    def log_message(self, message):
+        # Пишет лог в окно и в файл - Запись в файл потом убрать!!!
+        timestamp = datetime.datetime.now().strftime("[%H:%M:%S]")
+        full_msg = f"{timestamp} {message}"
+
+        # В окно
+        self.log_text.append(full_msg)
+
+        # Автопрокрутка вниз
+        self.log_text.moveCursor(self.log_text.textCursor().MoveOperation.End)
+
+    def clear_log(self):
+        self.log_text.clear()
 
     def refresh_ports(self):
         self.sensor_combo.clear()
@@ -144,74 +168,81 @@ class MainWindow(QMainWindow):
 
     def toggle_connection(self):
         if self.connect_btn.isChecked():
-            # Попытка подключения
             port = self.sensor_combo.currentText()
             if port == "Нет устройств":
                 self.connect_btn.setChecked(False)
                 return
 
+            self.log_message(f"Подключение к {port}...")
             if self.driver.connect(port):
                 self.connect_btn.setText("Отключить")
                 self.enable_controls(True)
-                QMessageBox.information(self, "Успех", f"Подключено к {port}\nРежим: Линейный")
+                self.log_message("Успешно подключено.")
+                QMessageBox.information(self, "Успех", f"Порт {port} открыт.")
             else:
                 self.connect_btn.setChecked(False)
+                self.log_message("Ошибка подключения.")
                 QMessageBox.critical(self, "Ошибка", "Не удалось открыть порт")
         else:
-            # Отключение
             self.driver.disconnect()
             self.connect_btn.setText("Подключить")
             self.enable_controls(False)
+            self.log_message("Отключено.")
 
     def enable_controls(self, enable):
         self.move_btn.setEnabled(enable)
-        self.set_zero_btn.setEnabled(enable)
-        self.stop_btn.setEnabled(enable)
-        self.test_btn.setEnabled(True)  # Тест всегда активен
+        self.test_btn.setEnabled(True)
 
     def set_quick_distance(self, value: float):
         self.distance_spin.setValue(value)
 
-    def set_zero(self):
-        """Сбрасывает координаты в ноль."""
-        self.driver.set_zero()  # Отправляем команду 'z' на Arduino
-        self.current_position = 0.0  # Сбрасываем локальный счетчик
-        self.update_position_label()
-
     def move_sensor(self):
+        # Отправка команды движения
         distance = self.distance_spin.value()
+
+        # Определяем знак направления
         if self.backward_radio.isChecked():
             distance = -abs(distance)
         else:
             distance = abs(distance)
 
-        # Рассчитываем НОВУЮ абсолютную координату
-        target_pos = self.current_position + distance
+        self.log_message(f"Команда: Сдвиг на {distance} мм")
 
-        # Отправляем команду на Arduino
-        self.driver.move_to(target_pos)
-        self.current_position = target_pos
-        self.update_position_label()
+        try:
+            self.driver.move_to(distance)
+            self.log_message("Команда отправлена.")
 
-    def emergency_stop(self):
-        self.driver.emergency_stop()
-        QMessageBox.warning(self, "Внимание","Команда остановки отправлена.\n")
+        except AttributeError:
+            QMessageBox.critical(self, "Ошибка", "Ошибка драйвера: метод move_to не найден.")
+        except Exception as e:
+            self.log_message(f"Сбой при отправке: {e}")
 
-    def toggle_test_mode(self):
-        """Переключает режим теста"""
-        if self.connect_btn.text() == "ТЕСТ":
-            self.connect_btn.setText("Подключить")
-            self.enable_controls(False)
-            QMessageBox.information(self, "ТЕСТ", "Вышли из режима теста")
-        else:
-            self.connect_btn.setText("ТЕСТ")
+    def toggle_test_mode(self): # Для сдачи проекта - потом убрать!!!
+        # Режим ТЕСТ
+        is_test = self.test_btn.isChecked()
+        if is_test:
+            # ПОПЫТКА ВКЛЮЧИТЬ ТЕСТ
+            # Если мы уже подключены к реальному Arduino — запрещаем тест
+            if self.connect_btn.isChecked():
+                QMessageBox.warning(self, "Конфликт", "Сначала отключитесь от реального порта!")
+                self.test_btn.setChecked(False)  # Отжимаем кнопку обратно
+                return
+
+            # Включаем интерфейс
             self.enable_controls(True)
-            QMessageBox.information(self, "ТЕСТ", "Режим теста включён")
+            # Блокируем кнопку подключения
+            self.connect_btn.setEnabled(False)
+            self.test_btn.setText("Выкл. ТЕСТ")
+            self.log_message("Режим ТЕСТ включен (симуляция).")
 
-    def update_position_label(self):
-        self.position_label.setText(f"Позиция: {self.current_position:.3f} мм")
+        else:
+            # ВЫКЛЮЧЕНИЕ ТЕСТА
+            self.enable_controls(False)
+            # Возвращаем возможность подключаться
+            self.connect_btn.setEnabled(True)
+            self.test_btn.setText("ТЕСТ")
+            self.log_message("Режим ТЕСТ выключен.")
 
-    """ ReadMe """
     def contextMenuEvent(self, event):
         context = QMenu(self)
         readme_action = QAction("ReadMe", self)
